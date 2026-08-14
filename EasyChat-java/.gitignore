@@ -34,3 +34,7 @@ build/
 
 ### Local secrets ###
 .env
+
+### Local project docs (不提交到远程) ###
+agent.md
+CLAUDE.md
