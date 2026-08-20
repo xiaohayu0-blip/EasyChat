@@ -2,6 +2,7 @@ package com.gym.easychatjava.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
@@ -30,6 +31,7 @@ public class FriendRequest {
     private LocalDateTime handleTime;
 
     /**逻辑删除:0未删 1已删*/
+    @TableLogic
     private Integer deleted;
 
     private LocalDateTime createTime;
