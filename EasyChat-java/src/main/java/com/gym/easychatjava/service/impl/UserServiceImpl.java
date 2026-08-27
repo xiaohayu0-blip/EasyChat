@@ -1,0 +1,91 @@
+package com.gym.easychatjava.service.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.gym.easychatjava.common.BusinessException;
+import com.gym.easychatjava.common.ResultCode;
+import com.gym.easychatjava.dto.LoginDTO;
+import com.gym.easychatjava.dto.RegisterDTO;
+import com.gym.easychatjava.entity.User;
+import com.gym.easychatjava.mapper.UserMapper;
+import com.gym.easychatjava.service.UserService;
+import com.gym.easychatjava.vo.LoginVO;
+import com.gym.easychatjava.vo.UserVO;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@RequiredArgsConstructor
+@Service
+public class UserServiceImpl implements UserService {
+
+    private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    @Override
+    @Transactional
+    public void register(RegisterDTO registerDTO) {
+        //1.手机号查重
+        Long count = userMapper.selectCount(
+                new LambdaQueryWrapper<User>().eq(User::getPhone,registerDTO.getPhone()));
+        if(count>0){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),"手机号已被注册");
+        }
+
+        String nickname = registerDTO.getNickname();
+        if(nickname==null||nickname.isBlank()){
+            nickname="用户"+registerDTO.getPhone().substring(7);
+        }
+
+        //2.组装User对象,密码必须加密
+        User user = new User();
+        user.setPhone(registerDTO.getPhone());
+        user.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
+        user.setNickname(nickname);
+
+        //3.入库
+        userMapper.insert(user);
+    }
+
+    @Override
+    public LoginVO login(LoginDTO loginDTO) {
+        //1.按手机号查用户
+        User user = userMapper.selectOne(
+                new LambdaQueryWrapper<User>().eq(User::getPhone,loginDTO.getPhone()));
+        if(user == null){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),"手机号或密码错误");
+
+        }
+
+        //2.校验密码
+        if(!passwordEncoder.matches(loginDTO.getPassword(),user.getPassword())){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),"手机号或密码错误");
+        }
+
+        //3.校验账号是否被禁用
+        if(user.getStatus()!=null&&user.getStatus()==1){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),"账号已被禁用");
+        }
+
+        //4.生成token并存入Redis
+        String token = UUID.randomUUID().toString().replace("-","");
+        stringRedisTemplate.opsForValue().set(token,String.valueOf(user.getId()), Duration.ofDays(7));
+
+        //5.更新最后登录时间
+        user.setLastLoginTime(LocalDateTime.now());
+        userMapper.updateById(user);
+
+        //6.组装返回LoginVO
+
+        LoginVO loginVO = new LoginVO();
+        loginVO.setToken(token);
+        loginVO.setUser(UserVO.from(user));
+        return loginVO;
+    }
+}

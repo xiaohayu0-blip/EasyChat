@@ -10,7 +10,8 @@ public enum ResultCode {
     SUCCESS(0, "成功"),
     PARAM_ERROR(400, "参数错误"),
     UNAUTHORIZED(401, "未登录或登录已过期"),
-    SERVER_ERROR(500, "服务器开小差了");
+    SERVER_ERROR(500, "服务器开小差了"),
+    NOT_FOUND(404, "接口不存在");
 
     private final int code;
     private final String msg;
