@@ -1,5 +1,7 @@
 package com.gym.easychatjava.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.gym.easychatjava.common.UserContext;
 import com.gym.easychatjava.dto.SendMessageDTO;
 import com.gym.easychatjava.entity.Message;
 import com.gym.easychatjava.mapper.MessageMapper;
@@ -9,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @RequiredArgsConstructor
 @Service
@@ -38,5 +42,45 @@ public class MessageServiceImpl implements MessageService {
         vo.setContent(dto.getContent());
         vo.setCreateTime(LocalDateTime.now());
         return vo;
+    }
+
+    @Override
+    public List<MessageVO> listHistory(Long friendId, int page, int size) {
+
+        Long me= UserContext.getUserId();
+
+        // 边界保护:page 至少 1,size 限制在 1~100 之间
+        if(page<1)page=1;
+        if(size<1||size>100)size=20;
+
+        // 计算偏移量:第 2 页 = 跳过前 20 条
+        int offset=(page-1)*size;
+
+        // 查双向单聊消息,按时间倒序,手动 LIMIT 分页
+        List<Message> messages=messageMapper.selectList(
+                new LambdaQueryWrapper<Message>()
+                        .eq(Message::getConversationType,1)
+                        .and(w->w
+                                .eq(Message::getFromUserId,me).eq(Message::getToId,friendId)
+                                .or()
+                                .eq(Message::getFromUserId,friendId).eq(Message::getToId,me))
+                        .orderByDesc(Message::getCreateTime)
+                        .last("LIMIT"+offset+","+size)
+        );
+
+        // Entity -> VO
+        List<MessageVO> result = new ArrayList<>();
+        for (Message m : messages) {
+            MessageVO vo = new MessageVO();
+            vo.setId(m.getId());
+            vo.setFromUserId(m.getFromUserId());
+            vo.setToId(m.getToId());
+            vo.setContentType(m.getContentType());
+            vo.setContent(m.getContent());
+            vo.setCreateTime(m.getCreateTime()); // 这是 select 出来的,DB 有值,直接用
+            result.add(vo);
+        }
+        return result;
+
     }
 }
