@@ -8,6 +8,7 @@ import com.gym.easychatjava.mapper.MessageMapper;
 import com.gym.easychatjava.service.MessageService;
 import com.gym.easychatjava.vo.MessageVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -19,6 +20,7 @@ import java.util.List;
 public class MessageServiceImpl implements MessageService {
 
     private final MessageMapper messageMapper;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     public MessageVO sendMessage(Long fromUserId, SendMessageDTO dto) {
@@ -68,6 +70,9 @@ public class MessageServiceImpl implements MessageService {
                         .last("LIMIT"+offset+","+size)
         );
 
+        // 拉历史 = 正在看这个会话,清掉该会话未读
+        stringRedisTemplate.delete("unread:count:" + me + ":" + friendId);
+
         // Entity -> VO
         List<MessageVO> result = new ArrayList<>();
         for (Message m : messages) {
@@ -82,5 +87,12 @@ public class MessageServiceImpl implements MessageService {
         }
         return result;
 
+    }
+
+    @Override
+    public int getUnreadCount(Long friendId) {
+        Long me=UserContext.getUserId();
+        String count=stringRedisTemplate.opsForValue().get("unread:count:"+me+":"+friendId);
+        return count==null?0:Integer.parseInt(count);
     }
 }

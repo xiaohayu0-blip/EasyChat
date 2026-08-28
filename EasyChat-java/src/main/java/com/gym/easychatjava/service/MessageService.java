@@ -12,4 +12,7 @@ public interface MessageService {
 
     /** 拉取与某好友的历史消息(倒序分页) */
     List<MessageVO> listHistory(Long friendId, int page, int size);
+
+    /** 查询与某好友的未读消息数 */
+    int getUnreadCount(Long friendId);
 }

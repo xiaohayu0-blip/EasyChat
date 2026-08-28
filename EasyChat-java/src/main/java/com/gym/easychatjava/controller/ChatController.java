@@ -29,4 +29,10 @@ public class ChatController {
             @RequestParam(defaultValue = "20") int size){
         return Result.success(messageService.listHistory(friendId,page,size));
     }
+
+    /** 查询与某好友的未读消息数 */
+    @GetMapping("/unread")
+    public Result<Integer> getUnreadCount(@RequestParam Long friendId) {
+        return Result.success(messageService.getUnreadCount(friendId));
+    }
 }

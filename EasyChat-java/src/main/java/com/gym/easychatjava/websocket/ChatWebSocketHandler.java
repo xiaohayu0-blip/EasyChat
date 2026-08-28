@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gym.easychatjava.dto.SendMessageDTO;
 import com.gym.easychatjava.service.MessageService;
 import com.gym.easychatjava.vo.MessageVO;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -25,10 +26,12 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     private final ObjectMapper objectMapper;
     private final MessageService messageService;
+    private final StringRedisTemplate stringRedisTemplate;
 
-    public ChatWebSocketHandler(ObjectMapper objectMapper, MessageService messageService) {
+    public ChatWebSocketHandler(ObjectMapper objectMapper, MessageService messageService, StringRedisTemplate stringRedisTemplate) {
         this.objectMapper = objectMapper;
         this.messageService = messageService;
+        this.stringRedisTemplate = stringRedisTemplate;
     }
 
     /** 连接建立后:把该用户注册到在线表 */
@@ -68,6 +71,10 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         WebSocketSession toSession=ONLINE_SESSIONS.get(dto.getToUserId());
         if(toSession!=null&&toSession.isOpen()){
             toSession.sendMessage(new TextMessage(json));
+        }else{
+            // 接收方离线:Redis 未读数 +1(key 不存在时 INCR 会自动从 0 开始)
+            stringRedisTemplate.opsForValue()
+                    .increment("unread:count:"+dto.getToUserId()+":"+fromUserId);
         }
 
         // 6. 回执给发送方(让自己界面能立刻显示这条消息)
