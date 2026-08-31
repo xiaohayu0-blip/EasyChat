@@ -1,6 +1,8 @@
 package com.gym.easychatjava.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.gym.easychatjava.common.BusinessException;
+import com.gym.easychatjava.common.ResultCode;
 import com.gym.easychatjava.common.UserContext;
 import com.gym.easychatjava.dto.SendMessageDTO;
 import com.gym.easychatjava.entity.Message;
@@ -43,6 +45,7 @@ public class MessageServiceImpl implements MessageService {
         vo.setContentType(dto.getContentType());
         vo.setContent(dto.getContent());
         vo.setCreateTime(LocalDateTime.now());
+        vo.setStatus(0);
         return vo;
     }
 
@@ -83,6 +86,7 @@ public class MessageServiceImpl implements MessageService {
             vo.setContentType(m.getContentType());
             vo.setContent(m.getContent());
             vo.setCreateTime(m.getCreateTime()); // 这是 select 出来的,DB 有值,直接用
+            vo.setStatus(m.getStatus());
             result.add(vo);
         }
         return result;
@@ -94,5 +98,41 @@ public class MessageServiceImpl implements MessageService {
         Long me=UserContext.getUserId();
         String count=stringRedisTemplate.opsForValue().get("unread:count:"+me+":"+friendId);
         return count==null?0:Integer.parseInt(count);
+    }
+
+    @Override
+    public MessageVO recall(Long messageId) {
+        Long me=UserContext.getUserId();
+
+        // 1. 按主键查消息
+        Message message=messageMapper.selectById(messageId);
+        if(message==null){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),"消息不存在");
+        }
+
+        // 2. 只能撤回自己发的
+        if(!message.getFromUserId().equals(me)){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),"只能撤回自己发的消息");
+        }
+
+        // 3. 超 2 分钟不能撤回
+        if(message.getCreateTime().plusMinutes(2).isBefore(LocalDateTime.now())){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),"超过2分钟的消息不能撤回");
+        }
+
+        // 4. 标记已撤回并更新
+        message.setStatus(3);
+        messageMapper.updateById(message);
+
+        // 5. 组装 VO(Controller 拿它去推送)
+        MessageVO vo=new MessageVO();
+        vo.setId(message.getId());
+        vo.setFromUserId(message.getFromUserId());
+        vo.setToId(message.getToId());
+        vo.setContentType(message.getContentType());
+        vo.setContent(null);
+        vo.setCreateTime(message.getCreateTime());
+        vo.setStatus(3);
+        return vo;
     }
 }

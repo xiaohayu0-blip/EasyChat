@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gym.easychatjava.dto.SendMessageDTO;
 import com.gym.easychatjava.service.MessageService;
 import com.gym.easychatjava.vo.MessageVO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -18,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 聊天 WebSocket 处理器:管理在线连接
  * 本步骤先只做"连接/断开",发消息在 8.2 加 handleTextMessage
  */
+@Slf4j
 @Component
 public class ChatWebSocketHandler extends TextWebSocketHandler {
     // 在线用户表:userId -> 该用户的 WebSocket 连接
@@ -79,5 +81,17 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
         // 6. 回执给发送方(让自己界面能立刻显示这条消息)
         session.sendMessage(new TextMessage(json));
+    }
+
+    /** 撤回通知:把撤回 VO 推给指定用户(供 HTTP 撤回接口调用) */
+    public void pushRecall(Long toUserId,MessageVO recallVo){
+        WebSocketSession toSession = ONLINE_SESSIONS.get(toUserId);
+        if(toSession!=null&&toSession.isOpen()){
+            try{
+                toSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(recallVo)));
+            }catch(Exception e){
+                log.error("推送撤回通知失败,toUserId={}",toUserId,e);
+            }
+        }
     }
 }

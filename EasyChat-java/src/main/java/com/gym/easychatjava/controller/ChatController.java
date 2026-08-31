@@ -3,11 +3,9 @@ package com.gym.easychatjava.controller;
 import com.gym.easychatjava.common.Result;
 import com.gym.easychatjava.service.MessageService;
 import com.gym.easychatjava.vo.MessageVO;
+import com.gym.easychatjava.websocket.ChatWebSocketHandler;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -20,6 +18,7 @@ import java.util.List;
 public class ChatController {
 
     private final MessageService messageService;
+    private final ChatWebSocketHandler chatWebSocketHandler;
 
     /** 拉取与某好友的历史消息(倒序分页) */
     @GetMapping("/history")
@@ -34,5 +33,13 @@ public class ChatController {
     @GetMapping("/unread")
     public Result<Integer> getUnreadCount(@RequestParam Long friendId) {
         return Result.success(messageService.getUnreadCount(friendId));
+    }
+
+    /** 撤回消息:校验通过后标记已撤回,并实时通知接收方 */
+    @PostMapping("/recall")
+    public Result<Void> recall(@RequestParam Long messageId){
+        MessageVO recallVo=messageService.recall(messageId);
+        chatWebSocketHandler.pushRecall(recallVo.getToId(),recallVo);
+        return Result.success();
     }
 }

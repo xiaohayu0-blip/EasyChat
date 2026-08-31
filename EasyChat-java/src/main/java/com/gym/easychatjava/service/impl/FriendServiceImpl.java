@@ -2,7 +2,6 @@ package com.gym.easychatjava.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.gym.easychatjava.common.BusinessException;
-import com.gym.easychatjava.common.Result;
 import com.gym.easychatjava.common.ResultCode;
 import com.gym.easychatjava.common.UserContext;
 import com.gym.easychatjava.dto.FriendRequestDTO;
