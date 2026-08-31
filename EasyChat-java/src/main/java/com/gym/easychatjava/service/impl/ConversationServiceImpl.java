@@ -1,8 +1,11 @@
 package com.gym.easychatjava.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.gym.easychatjava.common.UserContext;
+import com.gym.easychatjava.entity.Friend;
 import com.gym.easychatjava.entity.Message;
 import com.gym.easychatjava.entity.User;
+import com.gym.easychatjava.mapper.FriendMapper;
 import com.gym.easychatjava.mapper.MessageMapper;
 import com.gym.easychatjava.mapper.UserMapper;
 import com.gym.easychatjava.service.ConversationService;
@@ -23,6 +26,7 @@ public class ConversationServiceImpl implements ConversationService {
     private final MessageMapper messageMapper;
     private final UserMapper userMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    private final FriendMapper friendMapper;
 
     @Override
     public List<ConversationVO> listConversations() {
@@ -47,6 +51,19 @@ public class ConversationServiceImpl implements ConversationService {
             for(User u:users)userMap.put(u.getId(),u);
         }
 
+        // 批量查我设置的好友备注
+        Map<Long,String> remarkMap=new HashMap<>();
+        if(!friendIds.isEmpty()){
+            List<Friend> friends=friendMapper.selectList(
+                    new LambdaQueryWrapper<Friend>()
+                            .eq(Friend::getUserId,me)
+                            .in(Friend::getFriendId,friendIds)
+            );
+            for(Friend f:friends){
+                remarkMap.put(f.getFriendId(),f.getRemark());
+            }
+        }
+
         //组装VO列表
         List<ConversationVO> result=new ArrayList<>();
         for(Message message:latest){
@@ -62,6 +79,7 @@ public class ConversationServiceImpl implements ConversationService {
             // 5.3 new 一个 VO,把 message 上现成的字段先填进去
             ConversationVO vo = new ConversationVO();
             vo.setFriendId(friendId);
+            vo.setFriendRemark(remarkMap.get(friendId));
             vo.setLastContent(message.getContent());
             vo.setLastContentType(message.getContentType());
             vo.setLastTime(message.getCreateTime());

@@ -3,6 +3,7 @@ package com.gym.easychatjava.controller;
 import com.gym.easychatjava.common.Result;
 import com.gym.easychatjava.dto.FriendRequestDTO;
 import com.gym.easychatjava.dto.HandleRequestDTO;
+import com.gym.easychatjava.dto.UpdateRemarkDTO;
 import com.gym.easychatjava.service.FriendService;
 import com.gym.easychatjava.vo.FriendRequestVO;
 import com.gym.easychatjava.vo.FriendVO;
@@ -57,6 +58,12 @@ public class FriendController {
     @DeleteMapping("/{friendId}")
     public Result<Void> deleteFriend(@PathVariable Long friendId){
         friendService.deleteFriend(friendId);
+        return Result.success();
+    }
+
+    @PutMapping("/remark")
+    public Result<Void> updateRemark(@Valid @RequestBody UpdateRemarkDTO dto){
+        friendService.updateRemark(dto);
         return Result.success();
     }
 }

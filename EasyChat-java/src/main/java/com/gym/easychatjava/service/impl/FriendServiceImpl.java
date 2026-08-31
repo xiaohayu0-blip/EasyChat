@@ -6,6 +6,7 @@ import com.gym.easychatjava.common.ResultCode;
 import com.gym.easychatjava.common.UserContext;
 import com.gym.easychatjava.dto.FriendRequestDTO;
 import com.gym.easychatjava.dto.HandleRequestDTO;
+import com.gym.easychatjava.dto.UpdateRemarkDTO;
 import com.gym.easychatjava.entity.Friend;
 import com.gym.easychatjava.entity.FriendRequest;
 import com.gym.easychatjava.entity.User;
@@ -214,5 +215,25 @@ public class FriendServiceImpl implements FriendService {
         friendMapper.delete(new LambdaQueryWrapper<Friend>()
                 .eq(Friend::getUserId, friendId)
                 .eq(Friend::getFriendId, userId));
+    }
+
+    @Override
+    public void updateRemark(UpdateRemarkDTO dto) {
+        Long me=UserContext.getUserId();
+
+        // 1. 查"我 → 对方"这条好友关系(只查自己这条,不查反向)
+        Friend friend=friendMapper.selectOne(
+                new LambdaQueryWrapper<Friend>()
+                        .eq(Friend::getUserId,me)
+                        .eq(Friend::getFriendId,dto.getFriendId())
+        );
+        if(friend==null){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),"你们还不是好友");
+        }
+
+        // 2. 归一化:null 或纯空白都存成 ""(表示无备注)
+        String remark=dto.getRemark()==null?"":dto.getRemark().trim();
+        friend.setRemark(remark);
+        friendMapper.updateById(friend);
     }
 }

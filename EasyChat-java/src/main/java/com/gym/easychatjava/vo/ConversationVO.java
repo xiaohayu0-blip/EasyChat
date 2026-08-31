@@ -28,4 +28,7 @@ public class ConversationVO {
     /**未读数*/
     private Integer unreadCount;
 
+    /** 对方备注名(为空时前端回退显示昵称) */
+    private String friendRemark;
+
 }

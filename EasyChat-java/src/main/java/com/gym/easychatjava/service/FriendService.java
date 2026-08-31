@@ -1,6 +1,7 @@
 package com.gym.easychatjava.service;
 
 import com.gym.easychatjava.dto.FriendRequestDTO;
+import com.gym.easychatjava.dto.UpdateRemarkDTO;
 import com.gym.easychatjava.vo.FriendRequestVO;
 import com.gym.easychatjava.vo.FriendVO;
 import com.gym.easychatjava.dto.HandleRequestDTO;
@@ -23,5 +24,8 @@ public interface FriendService {
 
     /**删除好友*/
     void deleteFriend(Long friendId);
+
+    /** 设置/清除好友备注名 */
+    void updateRemark(UpdateRemarkDTO dto);
 
 }
