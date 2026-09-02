@@ -1,11 +1,15 @@
 package com.gym.easychatjava.controller;
 
 import com.gym.easychatjava.common.Result;
+import com.gym.easychatjava.dto.CommentDTO;
 import com.gym.easychatjava.dto.PublishMomentDTO;
 import com.gym.easychatjava.service.MomentService;
+import com.gym.easychatjava.vo.MomentVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/moment")
@@ -36,5 +40,24 @@ public class MomentController {
     public Result<Void> unlike(@PathVariable Long id){
         momentService.unlike(id);
         return Result.success();
+    }
+
+    @PostMapping("/comment")
+    public Result<Void> comment(@Valid @RequestBody CommentDTO dto){
+        momentService.comment(dto);
+        return Result.success();
+    }
+
+    @DeleteMapping("/comment/{id}")
+    public Result<Void> deleteComment(@PathVariable Long id){
+        momentService.deleteComment(id);
+        return Result.success();
+    }
+
+    @GetMapping("/timeline")
+    public Result<List<MomentVO>> timeline(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size){
+        return Result.success(momentService.listTimeline(page, size));
     }
 }

@@ -1,6 +1,10 @@
 package com.gym.easychatjava.service;
 
+import com.gym.easychatjava.dto.CommentDTO;
 import com.gym.easychatjava.dto.PublishMomentDTO;
+import com.gym.easychatjava.vo.MomentVO;
+
+import java.util.List;
 
 public interface MomentService {
 
@@ -11,4 +15,10 @@ public interface MomentService {
     void like(Long momentId);
 
     void unlike(Long momentId);
+
+    void comment(CommentDTO dto);
+
+    void deleteComment(Long commentId);
+
+    List<MomentVO> listTimeline(int page, int size);
 }
