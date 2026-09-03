@@ -1,12 +1,12 @@
 package com.gym.easychatjava.controller;
 
 import com.gym.easychatjava.common.Result;
+import com.gym.easychatjava.dto.ConversationSettingDTO;
 import com.gym.easychatjava.service.ConversationService;
 import com.gym.easychatjava.vo.ConversationVO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -20,5 +20,17 @@ public class ConversationController {
     @GetMapping("/list")
     public Result<List<ConversationVO>> list(){
         return Result.success(conversationService.listConversations());
+    }
+
+    @PutMapping("/pin")
+    public Result<Void> pin(@Valid @RequestBody ConversationSettingDTO dto) {
+        conversationService.setPinned(dto);
+        return Result.success();
+    }
+
+    @PutMapping("/mute")
+    public Result<Void> mute(@Valid @RequestBody ConversationSettingDTO dto) {
+        conversationService.setMuted(dto);
+        return Result.success();
     }
 }

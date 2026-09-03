@@ -31,4 +31,9 @@ public class ConversationVO {
     /** 对方备注名(为空时前端回退显示昵称) */
     private String friendRemark;
 
+    /**是否置顶*/
+    private Boolean pinned;
+
+    /**是否免打扰*/
+    private Boolean muted;
 }

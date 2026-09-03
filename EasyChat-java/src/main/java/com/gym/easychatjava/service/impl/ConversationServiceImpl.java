@@ -2,9 +2,12 @@ package com.gym.easychatjava.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.gym.easychatjava.common.UserContext;
+import com.gym.easychatjava.dto.ConversationSettingDTO;
+import com.gym.easychatjava.entity.ConversationSetting;
 import com.gym.easychatjava.entity.Friend;
 import com.gym.easychatjava.entity.Message;
 import com.gym.easychatjava.entity.User;
+import com.gym.easychatjava.mapper.ConversationSettingMapper;
 import com.gym.easychatjava.mapper.FriendMapper;
 import com.gym.easychatjava.mapper.MessageMapper;
 import com.gym.easychatjava.mapper.UserMapper;
@@ -27,6 +30,7 @@ public class ConversationServiceImpl implements ConversationService {
     private final UserMapper userMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final FriendMapper friendMapper;
+    private final ConversationSettingMapper conversationSettingMapper;
 
     @Override
     public List<ConversationVO> listConversations() {
@@ -64,6 +68,20 @@ public class ConversationServiceImpl implements ConversationService {
             }
         }
 
+        // 批量查我的会话设置(置顶/免打扰)
+        Map<Long, ConversationSetting> settingMap = new HashMap<>();
+        if (!friendIds.isEmpty()) {
+            List<ConversationSetting> settings = conversationSettingMapper.selectList(
+                    new LambdaQueryWrapper<ConversationSetting>()
+                            .eq(ConversationSetting::getUserId, me)
+                            .eq(ConversationSetting::getConversationType, 1)
+                            .in(ConversationSetting::getPeerId, friendIds)
+            );
+            for (ConversationSetting s : settings) {
+                settingMap.put(s.getPeerId(), s);
+            }
+        }
+
         //组装VO列表
         List<ConversationVO> result=new ArrayList<>();
         for(Message message:latest){
@@ -95,8 +113,67 @@ public class ConversationServiceImpl implements ConversationService {
                     .get("unread:count:" + me + ":" + friendId);
             vo.setUnreadCount(count == null ? 0 : Integer.parseInt(count));
 
+            ConversationSetting setting = settingMap.get(friendId);
+            vo.setPinned(setting != null && setting.getPinned() == 1);
+            vo.setMuted(setting != null && setting.getMuted() == 1);
+
             result.add(vo);
         }
+
+        // 置顶的排最前,其余按最后消息时间倒序
+        result.sort((a, b) -> {
+            boolean pa = Boolean.TRUE.equals(a.getPinned());
+            boolean pb = Boolean.TRUE.equals(b.getPinned());
+            if (pa != pb) {
+                return pa ? -1 : 1;
+            }
+            return b.getLastTime().compareTo(a.getLastTime());
+        });
+
         return result;
+    }
+
+    @Override
+    public void setPinned(ConversationSettingDTO dto) {
+        setFlag(dto,true);
+    }
+
+    @Override
+    public void setMuted(ConversationSettingDTO dto) {
+        setFlag(dto,false);
+    }
+
+    private void setFlag(ConversationSettingDTO dto,boolean isPin){
+        Long me=UserContext.getUserId();
+
+        // 1. 按唯一索引的三个字段查现有设置
+        ConversationSetting setting=conversationSettingMapper.selectOne(
+                new LambdaQueryWrapper<ConversationSetting>()
+                        .eq(ConversationSetting::getUserId,me)
+                        .eq(ConversationSetting::getConversationType,1)
+                        .eq(ConversationSetting::getPeerId,dto.getPeerId())
+        );
+
+        // 2. Boolean 开关 → 存库的 0/1
+        int value=dto.getEnabled()?1:0;
+
+        if(setting==null){
+            // 3. 没有这行:新建,另一个开关置 0
+            setting=new ConversationSetting();
+            setting.setUserId(me);
+            setting.setConversationType(1);
+            setting.setPeerId(dto.getPeerId());
+            setting.setPinned(isPin?value:0);
+            setting.setMuted(isPin?0:value);
+            conversationSettingMapper.insert(setting);
+        }else{
+            // 4. 已有这行:只改对应的那一个开关,另一个保持原样
+            if (isPin) {
+                setting.setPinned(value);
+            } else {
+                setting.setMuted(value);
+            }
+            conversationSettingMapper.updateById(setting);
+        }
     }
 }
