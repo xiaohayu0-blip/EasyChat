@@ -115,7 +115,6 @@ public class MomentServiceImpl implements MomentService {
         );
     }
 
-    // TODO 学习:评论/回复 —— 校验动态存在、replyUserId 归一化 0、插入评论
     @Override
     public void comment(CommentDTO dto) {
 
@@ -141,7 +140,6 @@ public class MomentServiceImpl implements MomentService {
         momentCommentMapper.insert(comment);
     }
 
-    // TODO 学习:删除评论 —— 评论作者或动态作者可删、@TableLogic 逻辑删除
     @Override
     public void deleteComment(Long commentId) {
         Long me=UserContext.getUserId();
@@ -170,7 +168,6 @@ public class MomentServiceImpl implements MomentService {
 
     }
 
-    // TODO 学习:好友时间线 —— 好友+自己动态分页倒序,IN 批量查避免 N+1,组装 MomentVO(作者/点赞数/是否已赞/评论)
     @Override
     public List<MomentVO> listTimeline(int page, int size) {
         Long me=UserContext.getUserId();
@@ -289,7 +286,6 @@ public class MomentServiceImpl implements MomentService {
         return result;
     }
 
-    // TODO 学习:图片 JSON 反序列化 —— TypeReference 保留泛型类型(泛型运行时擦除,List<String>.class 不存在)
     private List<String> parseImages(String imagesJson) {
         if (imagesJson == null || imagesJson.isBlank()) {
             return new ArrayList<>();
