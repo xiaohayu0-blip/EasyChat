@@ -116,6 +116,7 @@ public class ConversationServiceImpl implements ConversationService {
             ConversationSetting setting = settingMap.get(friendId);
             vo.setPinned(setting != null && setting.getPinned() == 1);
             vo.setMuted(setting != null && setting.getMuted() == 1);
+            vo.setShowUnreadBadge(!vo.getMuted()&&vo.getUnreadCount()>0);
 
             result.add(vo);
         }

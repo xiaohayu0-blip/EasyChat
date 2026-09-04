@@ -1,7 +1,6 @@
 package com.gym.easychatjava.vo;
 
 import lombok.Data;
-
 import java.time.LocalDateTime;
 
 @Data
@@ -36,4 +35,7 @@ public class ConversationVO {
 
     /**是否免打扰*/
     private Boolean muted;
+
+    /**是否显示未读数字红点:免打扰时即使有未读也不显示,前端换成静音图标*/
+    private Boolean showUnreadBadge;
 }
