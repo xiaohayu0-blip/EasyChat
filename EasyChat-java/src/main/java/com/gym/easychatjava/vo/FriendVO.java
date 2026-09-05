@@ -8,4 +8,5 @@ public class FriendVO {
     private String nickname;
     private String avatar;
     private String remark;      // 备注名
+    private Boolean blocked;    //是否已拉黑
 }

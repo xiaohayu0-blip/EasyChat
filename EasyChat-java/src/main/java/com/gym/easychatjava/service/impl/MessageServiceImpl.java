@@ -5,7 +5,9 @@ import com.gym.easychatjava.common.BusinessException;
 import com.gym.easychatjava.common.ResultCode;
 import com.gym.easychatjava.common.UserContext;
 import com.gym.easychatjava.dto.SendMessageDTO;
+import com.gym.easychatjava.entity.Friend;
 import com.gym.easychatjava.entity.Message;
+import com.gym.easychatjava.mapper.FriendMapper;
 import com.gym.easychatjava.mapper.MessageMapper;
 import com.gym.easychatjava.service.MessageService;
 import com.gym.easychatjava.vo.MessageVO;
@@ -23,9 +25,32 @@ public class MessageServiceImpl implements MessageService {
 
     private final MessageMapper messageMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    private final FriendMapper friendMapper;
 
     @Override
     public MessageVO sendMessage(Long fromUserId, SendMessageDTO dto) {
+
+        //校验我有没有拉黑对方
+        Long blockedByMe=friendMapper.selectCount(
+                new LambdaQueryWrapper<Friend>()
+                        .eq(Friend::getUserId,fromUserId)
+                        .eq(Friend::getFriendId,dto.getToUserId())
+                        .eq(Friend::getBlocked,1)
+        );
+        if(blockedByMe>0){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),"你已拉黑对方,无法发送消息");
+        }
+
+        //校验对方有没有拉黑我
+        Long blockedByPeer=friendMapper.selectCount(
+                new LambdaQueryWrapper<Friend>()
+                        .eq(Friend::getUserId,dto.getToUserId())
+                        .eq(Friend::getFriendId,fromUserId)
+                        .eq(Friend::getBlocked,1)
+        );
+        if(blockedByPeer>0){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),"消息已发出,但对方拒收了");
+        }
 
         // 1. 组装实体并落库
         Message message = new Message();

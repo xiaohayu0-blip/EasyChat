@@ -1,6 +1,7 @@
 package com.gym.easychatjava.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gym.easychatjava.common.BusinessException;
 import com.gym.easychatjava.dto.SendMessageDTO;
 import com.gym.easychatjava.service.MessageService;
 import com.gym.easychatjava.vo.MessageVO;
@@ -12,6 +13,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -63,8 +65,21 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         // 2. 把客户端发来的 JSON 字符串解析成 SendMessageDTO 对象
         SendMessageDTO dto=objectMapper.readValue(message.getPayload(),SendMessageDTO.class);
 
-        // 3. 落库并拿到带 id + createTime 的消息 VO
-        MessageVO vo=messageService.sendMessage(fromUserId,dto);
+        MessageVO vo;
+        try {
+            vo = messageService.sendMessage(fromUserId, dto);
+        } catch (BusinessException e) {
+            // 发送失败(如被拉黑):构造一个 status=4 的失败回执,只回给发送方自己
+            MessageVO failVo = new MessageVO();
+            failVo.setFromUserId(fromUserId);
+            failVo.setToId(dto.getToUserId());
+            failVo.setContentType(dto.getContentType());
+            failVo.setContent(e.getMessage());   // 错误提示,来自 BusinessException
+            failVo.setStatus(4);
+            failVo.setCreateTime(LocalDateTime.now());
+            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(failVo)));
+            return;   // 关键:失败就到此为止,不落库、不推送给对方
+        }
 
         // 4. 序列化 VO 成 JSON,准备推送
         String json=objectMapper.writeValueAsString(vo);

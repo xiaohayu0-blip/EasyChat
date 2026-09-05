@@ -66,4 +66,18 @@ public class FriendController {
         friendService.updateRemark(dto);
         return Result.success();
     }
+
+    /**拉黑好友*/
+    @PutMapping("/block/{friendId}")
+    public Result<Void> blockFriend(@PathVariable Long friendId){
+        friendService.blockFriend(friendId);
+        return Result.success();
+    }
+
+    /**移出黑名单*/
+    @PutMapping("/unblock/{friendId}")
+    public Result<Void> unblockFriend(@PathVariable Long friendId){
+        friendService.unblockFriend(friendId);
+        return Result.success();
+    }
 }

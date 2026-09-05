@@ -14,7 +14,9 @@ public class MessageVO {
     private Long toId;
     private Integer contentType;
     private String content;
+
     private LocalDateTime createTime;
-    /**0已发送 1已送达 2已读 3撤回*/
+    /**0已发送 1已送达 2已读 3撤回 4发送失败*/
     private Integer status;
+
 }

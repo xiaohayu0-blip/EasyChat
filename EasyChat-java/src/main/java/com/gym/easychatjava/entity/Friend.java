@@ -20,5 +20,10 @@ public class Friend {
 
     private String remark;
 
+    /**是否拉黑:0否 1是*/
+    private Integer blocked;
+
     private LocalDateTime createTime;
+
+
 }

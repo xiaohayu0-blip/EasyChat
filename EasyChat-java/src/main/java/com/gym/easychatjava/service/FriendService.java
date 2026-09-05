@@ -28,4 +28,8 @@ public interface FriendService {
     /** 设置/清除好友备注名 */
     void updateRemark(UpdateRemarkDTO dto);
 
+    void blockFriend(Long friendId);
+
+    void unblockFriend(Long friendId);
+
 }

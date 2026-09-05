@@ -194,6 +194,7 @@ public class FriendServiceImpl implements FriendService {
             FriendVO vo=new FriendVO();
             vo.setUserId(f.getFriendId());
             vo.setRemark(f.getRemark());
+            vo.setBlocked(f.getBlocked() != null && f.getBlocked() == 1);
             if(friendUser!=null){
                 vo.setNickname(friendUser.getNickname());
                 vo.setAvatar(friendUser.getAvatar());
@@ -236,4 +237,31 @@ public class FriendServiceImpl implements FriendService {
         friend.setRemark(remark);
         friendMapper.updateById(friend);
     }
+
+    @Override
+    public void blockFriend(Long friendId) {
+        setBlocked(friendId,true);
+    }
+
+    @Override
+    public void unblockFriend(Long friendId) {
+        setBlocked(friendId,false);
+    }
+
+    private void setBlocked(Long friendId,boolean blocked){
+        Long me = UserContext.getUserId();
+
+        Friend friend=friendMapper.selectOne(
+                new LambdaQueryWrapper<Friend>()
+                        .eq(Friend::getUserId,me)
+                        .eq(Friend::getFriendId,friendId)
+        );
+        if(friend==null){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),"你们还不是好友");
+        }
+
+        friend.setBlocked(blocked?1:0);
+        friendMapper.updateById(friend);
+    }
+
 }
