@@ -27,4 +27,8 @@ public class Message {
     private Integer status;
 
     private LocalDateTime createTime;
+
+    private Integer deletedBySender;
+
+    private Integer deletedByReceiver;
 }

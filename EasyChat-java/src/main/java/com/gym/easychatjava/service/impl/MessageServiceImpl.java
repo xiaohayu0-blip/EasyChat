@@ -14,6 +14,7 @@ import com.gym.easychatjava.vo.MessageVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -91,11 +92,11 @@ public class MessageServiceImpl implements MessageService {
                 new LambdaQueryWrapper<Message>()
                         .eq(Message::getConversationType,1)
                         .and(w->w
-                                .eq(Message::getFromUserId,me).eq(Message::getToId,friendId)
+                                .eq(Message::getFromUserId,me).eq(Message::getToId,friendId).eq(Message::getDeletedBySender,0)
                                 .or()
-                                .eq(Message::getFromUserId,friendId).eq(Message::getToId,me))
+                                .eq(Message::getFromUserId,friendId).eq(Message::getToId,me).eq(Message::getDeletedByReceiver,0))
                         .orderByDesc(Message::getCreateTime)
-                        .last("LIMIT"+offset+","+size)
+                        .last("LIMIT " + offset + "," + size)
         );
 
         // 拉历史 = 正在看这个会话,清掉该会话未读
@@ -159,5 +160,30 @@ public class MessageServiceImpl implements MessageService {
         vo.setCreateTime(message.getCreateTime());
         vo.setStatus(3);
         return vo;
+    }
+
+    @Transactional
+    @Override
+    public void deleteMessages(List<Long> messageIds) {
+
+        Long me = UserContext.getUserId();
+
+        for(Long id:messageIds){
+            Message message = messageMapper.selectById(id);
+
+            if(message == null){
+                throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "消息不存在");
+            }
+
+            if(message.getFromUserId().equals(me)){
+                message.setDeletedBySender(1);
+            }else if(message.getToId().equals(me)){
+                message.setDeletedByReceiver(1);
+            }else {
+                throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "无权删别人的会话消息");
+            }
+
+            messageMapper.updateById(message);
+        }
     }
 }

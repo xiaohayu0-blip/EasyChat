@@ -18,4 +18,7 @@ public interface MessageService {
 
     /** 撤回消息:校验后标记 status=3,返回带原消息信息的 VO 供推送 */
     MessageVO recall(Long messageId);
+
+    /**删除消息:校验后标记为1 */
+    void deleteMessages(List<Long> messageIds);
 }

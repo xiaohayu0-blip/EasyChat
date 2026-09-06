@@ -1,9 +1,11 @@
 package com.gym.easychatjava.controller;
 
 import com.gym.easychatjava.common.Result;
+import com.gym.easychatjava.dto.DeleteMessageDTO;
 import com.gym.easychatjava.service.MessageService;
 import com.gym.easychatjava.vo.MessageVO;
 import com.gym.easychatjava.websocket.ChatWebSocketHandler;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,6 +42,13 @@ public class ChatController {
     public Result<Void> recall(@RequestParam Long messageId){
         MessageVO recallVo=messageService.recall(messageId);
         chatWebSocketHandler.pushRecall(recallVo.getToId(),recallVo);
+        return Result.success();
+    }
+
+    /**删除消息*/
+    @PostMapping("/delete")
+    public Result<Void> delete(@Valid @RequestBody DeleteMessageDTO dto){
+        messageService.deleteMessages(dto.getMessageIds());
         return Result.success();
     }
 }

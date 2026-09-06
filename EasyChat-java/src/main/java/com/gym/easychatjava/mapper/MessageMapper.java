@@ -16,7 +16,11 @@ public interface MessageMapper extends BaseMapper<Message> {
                   SELECT MAX(m2.id)
                   FROM message m2
                   WHERE m2.conversation_type = 1
-                    AND (m2.from_user_id = #{userId} OR m2.to_id = #{userId})
+                    AND (
+                        (m2.from_user_id = #{userId} AND m2.deleted_by_sender = 0)
+                        OR
+                        (m2.to_id = #{userId} AND m2.deleted_by_receiver = 0)
+                    )
                   GROUP BY CASE
                       WHEN m2.from_user_id = #{userId} THEN m2.to_id
                       ELSE m2.from_user_id
