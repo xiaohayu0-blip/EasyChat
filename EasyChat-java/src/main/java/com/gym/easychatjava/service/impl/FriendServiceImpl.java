@@ -16,7 +16,9 @@ import com.gym.easychatjava.mapper.UserMapper;
 import com.gym.easychatjava.service.FriendService;
 import com.gym.easychatjava.vo.FriendRequestVO;
 import com.gym.easychatjava.vo.FriendVO;
+import com.gym.easychatjava.websocket.ChatWebSocketHandler;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,8 @@ public class FriendServiceImpl implements FriendService {
     private final UserMapper userMapper;
     private final FriendMapper friendMapper;
     private final FriendRequestMapper friendRequestMapper;
+    private final ChatWebSocketHandler chatWebSocketHandler;
+    private final StringRedisTemplate stringRedisTemplate;
 
     @Override
     public void sendRequest(FriendRequestDTO dto) {
@@ -76,12 +80,27 @@ public class FriendServiceImpl implements FriendService {
         request.setMessage(dto.getMessage());
         request.setStatus(0);
         friendRequestMapper.insert(request);
+        stringRedisTemplate.opsForValue().increment("friend_request:unread:"+toUserId);
+
+        //6.构建通知VO并实时推送给接收方
+        User fromUser=userMapper.selectById(userId);
+        FriendRequestVO vo=new FriendRequestVO();
+        vo.setId(request.getId());
+        vo.setFromUserId(userId);
+        vo.setMessage(request.getMessage());
+        vo.setCreateTime(LocalDateTime.now());
+        if(fromUser!=null){
+            vo.setNickname(fromUser.getNickname());
+            vo.setAvatar(fromUser.getAvatar());
+        }
+        chatWebSocketHandler.pushEvent(toUserId,"friend_request",vo);
     }
 
     @Override
     public List<FriendRequestVO> listReceivedRequests() {
         //1.拿当前登录用户id
         Long userId = UserContext.getUserId();
+        stringRedisTemplate.delete("friend_request:unread:"+userId);
 
         //2.查发给我的、待处理的申请(按时间倒序)
         List<FriendRequest> requests = friendRequestMapper.selectList(
@@ -246,6 +265,13 @@ public class FriendServiceImpl implements FriendService {
     @Override
     public void unblockFriend(Long friendId) {
         setBlocked(friendId,false);
+    }
+
+    @Override
+    public Integer getUnreadRequestCount() {
+        Long userId=UserContext.getUserId();
+        String value=stringRedisTemplate.opsForValue().get("friend_request:unread:"+userId);
+        return value==null?0:Integer.parseInt(value);
     }
 
     private void setBlocked(Long friendId,boolean blocked){

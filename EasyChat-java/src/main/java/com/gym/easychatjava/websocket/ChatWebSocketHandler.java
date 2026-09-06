@@ -5,6 +5,7 @@ import com.gym.easychatjava.common.BusinessException;
 import com.gym.easychatjava.dto.SendMessageDTO;
 import com.gym.easychatjava.service.MessageService;
 import com.gym.easychatjava.vo.MessageVO;
+import com.gym.easychatjava.vo.WsMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -13,6 +14,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -108,5 +110,30 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                 log.error("推送撤回通知失败,toUserId={}",toUserId,e);
             }
         }
+    }
+
+    /**好友申请实时推送事件*/
+    public void pushEvent(Long toUserId,String type,Object data){
+
+        // 1. 从在线表拿接收方的 WebSocketSession
+        WebSocketSession toSession = ONLINE_SESSIONS.get(toUserId);
+
+        // 2. 判空 + isOpen()(离线就不用推了,和 pushRecall 一致)
+        if(toSession!=null&&toSession.isOpen()){
+            // 3. new 一个 WsMessage,setType(type)、setData(data)
+            WsMessage<Object> wsMessage = new WsMessage<>();
+            wsMessage.setType(type);
+            wsMessage.setData(data);
+
+            // 4. objectMapper.writeValueAsString(wsMessage) 序列化成 JSON
+            // 5. new TextMessage(json) 发送
+            // 6. try/catch 包住,失败用 log.error,别让一个推送失败打断整个流程
+            try {
+                toSession.sendMessage(new TextMessage(objectMapper.writeValueAsString(wsMessage)));
+            } catch (IOException e) {
+                log.error("推送好友申请通知失败,toUserId={}",toUserId,e);
+            }
+        }
+
     }
 }

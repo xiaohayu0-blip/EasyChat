@@ -32,4 +32,6 @@ public interface FriendService {
 
     void unblockFriend(Long friendId);
 
+    Integer getUnreadRequestCount();
+
 }

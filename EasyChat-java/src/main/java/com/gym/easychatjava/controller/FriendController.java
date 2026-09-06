@@ -80,4 +80,10 @@ public class FriendController {
         friendService.unblockFriend(friendId);
         return Result.success();
     }
+
+    /**获取未读好友申请数*/
+    @GetMapping("/request/unread")
+    public Result<Integer> getUnreadRequestCount(){
+        return Result.success(friendService.getUnreadRequestCount());
+    }
 }
