@@ -16,5 +16,6 @@ public class MomentVO {
     private int likeCount;             // 点赞数
     private boolean liked;             // 当前登录用户是否已点赞
     private List<MomentCommentVO> comments;
+    private List<UserVO> likeUsers;
 
 }

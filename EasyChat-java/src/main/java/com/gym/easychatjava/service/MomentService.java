@@ -21,4 +21,7 @@ public interface MomentService {
     void deleteComment(Long commentId);
 
     List<MomentVO> listTimeline(int page, int size);
+
+    MomentVO getMomentDetail(Long momentId);
+    List<MomentVO> listUserMoments(Long userId,int page,int size);
 }

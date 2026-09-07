@@ -60,4 +60,17 @@ public class MomentController {
             @RequestParam(defaultValue = "10") int size){
         return Result.success(momentService.listTimeline(page, size));
     }
+
+    @GetMapping("/{id}")
+    public Result<MomentVO> detail(@PathVariable Long id){
+        return Result.success(momentService.getMomentDetail(id));
+    }
+
+    @GetMapping("/user/{userId}")
+    public Result<List<MomentVO>> userMoments(
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size){
+        return Result.success(momentService.listUserMoments(userId, page, size));
+    }
 }

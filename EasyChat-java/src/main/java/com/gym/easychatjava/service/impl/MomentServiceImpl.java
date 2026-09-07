@@ -172,7 +172,7 @@ public class MomentServiceImpl implements MomentService {
     public List<MomentVO> listTimeline(int page, int size) {
         Long me=UserContext.getUserId();
 
-        //1.分页参数边界保护
+        // 1. 分页参数边界保护
         if(page<1)page=1;
         if(size<1||size>50)size=10;
 
@@ -186,47 +186,126 @@ public class MomentServiceImpl implements MomentService {
             userIds.add(f.getFriendId());
         }
 
-        // 3. 查这些人的动态,时间倒序,手动 LIMIT 分页(和 listHistory 一样的写法)
+        // 3. 查这些人的动态,时间倒序,手动 LIMIT 分页
         int offset=(page-1)*size;
         List<Moment> moments=momentMapper.selectList(
                 new LambdaQueryWrapper<Moment>()
                         .in(Moment::getUserId,userIds)
                         .orderByDesc(Moment::getCreateTime)
-                        .last("LIMIT"+offset+","+size)
+                        .last("LIMIT " + offset + ","+ size)
                 );
-        if(moments.isEmpty()){
+
+        // 4. 交给公共方法组装
+        return buildMomentVOList(moments, me);
+    }
+
+    @Override
+    public MomentVO getMomentDetail(Long momentId) {
+        Long me=UserContext.getUserId();
+
+        // 1. 动态必须存在
+        Moment moment=momentMapper.selectById(momentId);
+        if(moment==null){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "动态不存在");
+        }
+
+        // 2. 权限:只能看「自己」或「好友」的动态(复刻微信:陌生人点不进你朋友圈)
+        Long authorId=moment.getUserId();
+        boolean isMine=authorId.equals(me);
+        boolean isFriend=friendMapper.selectCount(
+                new LambdaQueryWrapper<Friend>()
+                        .eq(Friend::getUserId,me)
+                        .eq(Friend::getFriendId,authorId)
+        )>0;
+        if(!isMine&&!isFriend){
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "无权查看该动态");
+        }
+
+        // 3. 复用公共方法:单条包成 List 传进去,取回第 0 个
+        return buildMomentVOList(Collections.singletonList(moment), me).get(0);
+    }
+
+    @Override
+    public List<MomentVO> listUserMoments(Long userId, int page, int size) {
+        Long me = UserContext.getUserId();
+
+        // 1. 权限:只能看自己或好友
+        if(!userId.equals(me)){
+            boolean isFriend=friendMapper.selectCount(
+                    new LambdaQueryWrapper<Friend>()
+                            .eq(Friend::getUserId,me)
+                            .eq(Friend::getFriendId,userId)
+            )>0;
+            if(!isFriend){
+                throw new BusinessException(ResultCode.PARAM_ERROR.getCode(),"无权查看该用户的朋友圈");
+            }
+        }
+
+        // 2. 分页边界
+        if(page<1)page=1;
+        if(size<1||size>50)size=10;
+
+        // 3. 查该用户的动态,时间倒序
+        int offset=(page-1)*size;
+        List<Moment> moments=momentMapper.selectList(
+                new LambdaQueryWrapper<Moment>()
+                        .eq(Moment::getUserId,userId)
+                        .orderByDesc(Moment::getCreateTime)
+                        .last("LIMIT " + offset + "," + size)
+        );
+
+        // 4. 交给公共方法组装
+        return buildMomentVOList(moments, me);
+    }
+
+    /**
+     * 公共组装方法:给一批动态批量查作者/点赞/评论并组装成 VO。
+     * listTimeline、listUserMoments、getMomentDetail 三处共用,避免重复代码。
+     */
+    private List<MomentVO> buildMomentVOList(List<Moment> moments, Long me) {
+        if (moments == null || moments.isEmpty()) {
             return new ArrayList<>();
         }
 
         // 收集:所有动态id + 所有作者id
-        List<Long> momentIds=new ArrayList<>();
-        Set<Long> authorIds=new HashSet<>();
-        for(Moment m:moments){
+        List<Long> momentIds = new ArrayList<>();
+        Set<Long> authorIds = new HashSet<>();
+        for (Moment m : moments) {
             momentIds.add(m.getId());
             authorIds.add(m.getUserId());
         }
 
-        // 4. 批量查作者(id -> User)
-        Map<Long, User>authorMap=new HashMap<>();
-        List<User> authors=userMapper.selectBatchIds(authorIds);
-        for(User u:authors){
-            authorMap.put(u.getId(),u);
+        // 批量查作者(id -> User)
+        Map<Long, User> authorMap = new HashMap<>();
+        for (User u : userMapper.selectBatchIds(authorIds)) {
+            authorMap.put(u.getId(), u);
         }
 
-        // 5. 一次查这些动态的所有点赞,统计:动态id -> 点赞数,以及"我点过赞的动态id集合"
-        List<MomentLike> likes=momentLikeMapper.selectList(
-                new LambdaQueryWrapper<MomentLike>().in(MomentLike::getMomentId,momentIds)
-        );
-        Map<Long,Integer> likeCountMap=new HashMap<>();
-        Set<Long> myLikedIds=new HashSet<>();
+        // 查这些动态的所有点赞:统计点赞数 + 我是否赞过 + 点赞人列表
+        List<MomentLike> likes = momentLikeMapper.selectList(
+                new LambdaQueryWrapper<MomentLike>()
+                        .in(MomentLike::getMomentId, momentIds)
+                        .orderByAsc(MomentLike::getCreateTime));
+        Map<Long, Integer> likeCountMap = new HashMap<>();
+        Set<Long> myLikedIds = new HashSet<>();
+        Map<Long, List<Long>> likeUserIdsMap = new HashMap<>();   // 动态id -> 点赞人id列表
+        Set<Long> likeUserIds = new HashSet<>();                    // 所有点赞人id(去重)
         for (MomentLike like : likes) {
             likeCountMap.put(like.getMomentId(), likeCountMap.getOrDefault(like.getMomentId(), 0) + 1);
+            likeUserIdsMap.computeIfAbsent(like.getMomentId(), k -> new ArrayList<>()).add(like.getUserId());
+            likeUserIds.add(like.getUserId());
             if (like.getUserId().equals(me)) {
                 myLikedIds.add(like.getMomentId());
             }
         }
+        Map<Long, User> likeUserMap = new HashMap<>();
+        if (!likeUserIds.isEmpty()) {
+            for (User u : userMapper.selectBatchIds(likeUserIds)) {
+                likeUserMap.put(u.getId(), u);
+            }
+        }
 
-        // 6. 一次查这些动态的所有评论,按动态分组;同时收集"评论人id + 被回复人id"
+        // 查这些动态的所有评论,按动态分组;同时收集评论人/被回复人id
         List<MomentComment> comments = momentCommentMapper.selectList(
                 new LambdaQueryWrapper<MomentComment>()
                         .in(MomentComment::getMomentId, momentIds)
@@ -240,17 +319,14 @@ public class MomentServiceImpl implements MomentService {
                 commentUserIds.add(c.getReplyUserId());
             }
         }
-
-        // 批量查评论相关用户
         Map<Long, User> commentUserMap = new HashMap<>();
         if (!commentUserIds.isEmpty()) {
-            List<User> users = userMapper.selectBatchIds(commentUserIds);
-            for (User u : users) {
+            for (User u : userMapper.selectBatchIds(commentUserIds)) {
                 commentUserMap.put(u.getId(), u);
             }
         }
 
-        // 7. 组装 VO
+        // 组装 VO
         List<MomentVO> result = new ArrayList<>();
         for (Moment m : moments) {
             MomentVO vo = new MomentVO();
@@ -261,6 +337,19 @@ public class MomentServiceImpl implements MomentService {
             vo.setUser(UserVO.from(authorMap.get(m.getUserId())));
             vo.setLikeCount(likeCountMap.getOrDefault(m.getId(), 0));
             vo.setLiked(myLikedIds.contains(m.getId()));
+
+            // 点赞人列表(按点赞先后)
+            List<UserVO> likeUserVOs = new ArrayList<>();
+            List<Long> luids = likeUserIdsMap.get(m.getId());
+            if (luids != null) {
+                for (Long uid : luids) {
+                    User u = likeUserMap.get(uid);
+                    if (u != null) {
+                        likeUserVOs.add(UserVO.from(u));
+                    }
+                }
+            }
+            vo.setLikeUsers(likeUserVOs);
 
             // 组装该动态的评论
             List<MomentCommentVO> commentVOs = new ArrayList<>();
