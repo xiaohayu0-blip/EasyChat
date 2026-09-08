@@ -5,6 +5,7 @@ import com.gym.easychatjava.dto.FriendRequestDTO;
 import com.gym.easychatjava.dto.HandleRequestDTO;
 import com.gym.easychatjava.dto.UpdateRemarkDTO;
 import com.gym.easychatjava.service.FriendService;
+import com.gym.easychatjava.vo.FriendRequestSentVO;
 import com.gym.easychatjava.vo.FriendRequestVO;
 import com.gym.easychatjava.vo.FriendVO;
 import jakarta.validation.Valid;
@@ -85,5 +86,11 @@ public class FriendController {
     @GetMapping("/request/unread")
     public Result<Integer> getUnreadRequestCount(){
         return Result.success(friendService.getUnreadRequestCount());
+    }
+
+    /**获取我发出的好友申请列表*/
+    @GetMapping("/request/sent")
+    public Result<List<FriendRequestSentVO>> listSentRequests(){
+        return Result.success(friendService.listSentRequests());
     }
 }

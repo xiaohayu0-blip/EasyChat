@@ -2,6 +2,7 @@ package com.gym.easychatjava.service;
 
 import com.gym.easychatjava.dto.FriendRequestDTO;
 import com.gym.easychatjava.dto.UpdateRemarkDTO;
+import com.gym.easychatjava.vo.FriendRequestSentVO;
 import com.gym.easychatjava.vo.FriendRequestVO;
 import com.gym.easychatjava.vo.FriendVO;
 import com.gym.easychatjava.dto.HandleRequestDTO;
@@ -33,5 +34,8 @@ public interface FriendService {
     void unblockFriend(Long friendId);
 
     Integer getUnreadRequestCount();
+
+    /**已发送的好友申请列表(我发出的)*/
+    List<FriendRequestSentVO> listSentRequests();
 
 }

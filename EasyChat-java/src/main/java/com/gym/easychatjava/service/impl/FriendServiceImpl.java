@@ -14,6 +14,7 @@ import com.gym.easychatjava.mapper.FriendMapper;
 import com.gym.easychatjava.mapper.FriendRequestMapper;
 import com.gym.easychatjava.mapper.UserMapper;
 import com.gym.easychatjava.service.FriendService;
+import com.gym.easychatjava.vo.FriendRequestSentVO;
 import com.gym.easychatjava.vo.FriendRequestVO;
 import com.gym.easychatjava.vo.FriendVO;
 import com.gym.easychatjava.websocket.ChatWebSocketHandler;
@@ -272,6 +273,51 @@ public class FriendServiceImpl implements FriendService {
         Long userId=UserContext.getUserId();
         String value=stringRedisTemplate.opsForValue().get("friend_request:unread:"+userId);
         return value==null?0:Integer.parseInt(value);
+    }
+
+    @Override
+    public List<FriendRequestSentVO> listSentRequests() {
+        Long me = UserContext.getUserId();
+
+        //查我发出的所有申请
+        List<FriendRequest> requests=friendRequestMapper.selectList(
+                new LambdaQueryWrapper<FriendRequest>()
+                        .eq(FriendRequest::getFromUserId,me)
+                        .orderByDesc(FriendRequest::getCreateTime)
+        );
+
+        //收集对方id
+        List<Long> toUserIds=new ArrayList<>();
+        for(FriendRequest r:requests){
+            toUserIds.add(r.getToUserId());
+        }
+
+        //批量查对方信息
+        Map<Long,User> userMap=new HashMap<>();
+        if(!toUserIds.isEmpty()){
+            List<User> users=userMapper.selectBatchIds(toUserIds);
+            for(User u:users){
+                userMap.put(u.getId(),u);
+            }
+        }
+
+        //组装VO返回
+        List<FriendRequestSentVO> result=new ArrayList<>();
+        for(FriendRequest r:requests){
+            User toUser=userMap.get(r.getToUserId());
+            FriendRequestSentVO vo=new FriendRequestSentVO();
+            vo.setId(r.getId());
+            vo.setToUserId(r.getToUserId());
+            vo.setMessage(r.getMessage());
+            vo.setStatus(r.getStatus());
+            vo.setCreateTime(r.getCreateTime());
+            if(toUser!=null){
+                vo.setNickname(toUser.getNickname());
+                vo.setAvatar(toUser.getAvatar());
+            }
+            result.add(vo);
+        }
+        return result;
     }
 
     private void setBlocked(Long friendId,boolean blocked){

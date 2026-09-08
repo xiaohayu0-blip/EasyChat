@@ -259,7 +259,7 @@ public class MomentServiceImpl implements MomentService {
     }
 
     /**
-     * 公共组装方法:给一批动态批量查作者/点赞/评论并组装成 VO。
+     * 公共组装方法:给一批动态 批量查作者/点赞/评论并组装成 VO。
      * listTimeline、listUserMoments、getMomentDetail 三处共用,避免重复代码。
      */
     private List<MomentVO> buildMomentVOList(List<Moment> moments, Long me) {
